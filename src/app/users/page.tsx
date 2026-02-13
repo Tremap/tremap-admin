@@ -14,6 +14,8 @@ export default function UsersPage() {
   const [secret, setSecret] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function UsersPage() {
       router.push("/");
     } else {
       setSecret(storedSecret);
-      fetchUsers(storedSecret, "");
+      fetchUsers(storedSecret, "", 1);
     }
   }, []);
 
@@ -34,20 +36,25 @@ export default function UsersPage() {
     router.push("/");
   };
 
-  const fetchUsers = async (token: string, query: string) => {
+  const fetchUsers = async (token: string, query: string, pageNum: number) => {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get(`${API_URL}/users?q=${query}`, {
-        headers: { "x-admin-secret": token },
-      });
+      const res = await axios.get(
+        `${API_URL}/users?q=${query}&page=${pageNum}&limit=50`,
+        {
+          headers: { "x-admin-secret": token },
+        },
+      );
       // Handle both old array format (just in case) and new object format
       if (Array.isArray(res.data)) {
         setUsers(res.data);
         setTotalCount(res.data.length);
+        setTotalPages(1);
       } else {
         setUsers(res.data.users || []);
         setTotalCount(res.data.count || 0);
+        setTotalPages(res.data.totalPages || 1);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to fetch users");
@@ -58,7 +65,15 @@ export default function UsersPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers(secret, searchQuery);
+    setPage(1);
+    fetchUsers(secret, searchQuery, 1);
+  };
+
+  const changePage = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      fetchUsers(secret, searchQuery, newPage);
+    }
   };
 
   return (
@@ -184,6 +199,29 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <button
+              onClick={() => changePage(page - 1)}
+              disabled={page === 1 || loading}
+              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-slate-600 font-medium">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => changePage(page + 1)}
+              disabled={page === totalPages || loading}
+              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );
