@@ -11,9 +11,8 @@ const API_URL =
 export default function Home() {
   const [secret, setSecret] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,14 +20,7 @@ export default function Home() {
     if (storedSecret) {
       setSecret(storedSecret);
       setIsAuthenticated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    const storedSecret = localStorage.getItem("admin_secret");
-    if (storedSecret) {
-      setSecret(storedSecret);
-      setIsAuthenticated(true);
+      fetchStats(storedSecret);
     }
   }, []);
 
@@ -37,6 +29,7 @@ export default function Home() {
     if (secret) {
       setIsAuthenticated(true);
       localStorage.setItem("admin_secret", secret);
+      fetchStats(secret);
     }
   };
 
@@ -46,21 +39,16 @@ export default function Home() {
     localStorage.removeItem("admin_secret");
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchStats = async (token: string) => {
     setLoading(true);
     setError("");
-    setUserData(null);
-
     try {
-      const isEmail = searchQuery.includes("@");
-      const query = isEmail ? `email=${searchQuery}` : `id=${searchQuery}`;
-      const res = await axios.get(`${API_URL}/user-trees?${query}`, {
-        headers: { "x-admin-secret": secret },
+      const res = await axios.get(`${API_URL}/dashboard`, {
+        headers: { "x-admin-secret": token },
       });
-      setUserData(res.data);
+      setStats(res.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || "User not found");
+      setError(err.response?.data?.message || "Failed to load dashboard stats");
     } finally {
       setLoading(false);
     }
@@ -125,179 +113,163 @@ export default function Home() {
       <main className="lg:ml-64 p-6 lg:p-10">
         {/* Header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            User Inspector
-          </h1>
-          <p className="text-slate-500">
-            Search for users and manage their tree data
-          </p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dashboard</h1>
+          <p className="text-slate-500">Overview of TreMap activity</p>
         </div>
 
-        {/* Search */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 mb-8 max-w-2xl">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="flex-1 relative">
-              <svg
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-transparent focus:outline-none text-slate-800 placeholder-slate-400"
-                placeholder="Search by email address..."
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50 shadow-sm"
-            >
-              {loading ? "..." : "Search"}
-            </button>
-          </form>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-8 max-w-2xl">
-            {error}
-          </div>
-        )}
-
-        {/* Results */}
-        {userData && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* User Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-start gap-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                  {userData.user.name?.[0] || "U"}
+        {/* Stats Cards */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            {/* Trees Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex items-center gap-6">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium mb-1">
+                  Total Trees
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-slate-800">
-                    {userData.user.name || "Unknown"}
-                  </h2>
-                  <p className="text-slate-500">{userData.user.email}</p>
-                  <div className="mt-2 inline-flex items-center px-3 py-1 bg-slate-100 rounded-full text-xs text-slate-600 font-mono">
-                    ID: {userData.user._id}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl font-bold text-emerald-600">
-                    {userData.count}
-                  </div>
-                  <div className="text-sm text-slate-500">Total Trees</div>
+                <div className="text-3xl font-bold text-slate-800">
+                  {stats.treesCount}
                 </div>
               </div>
             </div>
 
-            {/* Trees Grid */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                Uploaded Trees
-              </h3>
-              {userData.trees.length === 0 ? (
-                <div className="bg-slate-50 rounded-2xl p-12 text-center text-slate-500">
-                  No trees found for this user
+            {/* Users Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex items-center gap-6">
+              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium mb-1">
+                  Total Users
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {userData.trees.map((tree: any) => (
-                    <div
-                      key={tree._id}
-                      className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                    >
-                      <div className="h-40 bg-gradient-to-br from-emerald-100 to-teal-100 relative overflow-hidden">
-                        {tree.image ? (
-                          <img
-                            src={tree.image}
-                            alt=""
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg
-                              className="w-12 h-12 text-emerald-300"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M10 2L3 7v11h5v-6h4v6h5V7l-7-5z" />
-                            </svg>
-                          </div>
-                        )}
-                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-semibold text-slate-700">
-                          {tree.createdAt
-                            ? new Date(tree.createdAt).getFullYear()
-                            : "N/A"}
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-slate-800 capitalize">
-                          {tree.common || "Unknown"}
-                        </h4>
-                        <p className="text-sm text-slate-500 italic capitalize">
-                          {tree.genus} {tree.species}
-                        </p>
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-xs text-slate-400">
-                            {tree.createdAt
-                              ? new Date(tree.createdAt).toLocaleDateString()
-                              : "No Date"}
-                          </span>
-                          {tree.geometry && (
-                            <a
-                              href={`https://www.google.com/maps?q=${tree.geometry.coordinates[1]},${tree.geometry.coordinates[0]}`}
-                              target="_blank"
-                              className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                            >
-                              View on Map →
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-3xl font-bold text-slate-800">
+                  {stats.usersCount}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Empty State */}
-        {!userData && !error && (
-          <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 rounded-full mb-4">
-              <svg
-                className="w-10 h-10 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+        {/* Recent Activity Grid */}
+        {stats && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Recent Trees */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Last 10 Trees
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold text-slate-600">
+                        Species
+                      </th>
+                      <th className="px-6 py-3 font-semibold text-slate-600">
+                        User
+                      </th>
+                      <th className="px-6 py-3 font-semibold text-slate-600">
+                        Date
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {stats.recentTrees.map((tree: any) => (
+                      <tr key={tree._id} className="hover:bg-slate-50">
+                        <td className="px-6 py-3">
+                          <div className="font-medium text-slate-800 capitalize">
+                            {tree.common || "Unknown"}
+                          </div>
+                          <div className="text-slate-500 italic lowercase">
+                            {tree.genus} {tree.species}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-slate-600">
+                          {tree.user.firstName || tree.user.email}
+                        </td>
+                        <td className="px-6 py-3 text-slate-500">
+                          {new Date(tree.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">
-              Search for a User
-            </h3>
-            <p className="text-slate-400">
-              Enter an email address above to get started
-            </p>
+
+            {/* Recent Users */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-fit">
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Last 5 Active Users
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold text-slate-600">
+                        User
+                      </th>
+                      <th className="px-6 py-3 font-semibold text-slate-600">
+                        Joined
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {stats.recentUsers.map((user: any) => (
+                      <tr key={user._id} className="hover:bg-slate-50">
+                        <td className="px-6 py-3">
+                          <div className="font-medium text-slate-800">
+                            {user.firstName}
+                          </div>
+                          <div className="text-slate-500 text-xs">
+                            {user.email}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-slate-500">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="text-center py-20 text-slate-500">
+            Loading dashboard...
           </div>
         )}
       </main>
