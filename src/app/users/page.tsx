@@ -13,6 +13,7 @@ export default function UsersPage() {
   const router = useRouter();
   const [secret, setSecret] = useState("");
   const [users, setUsers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,7 +41,14 @@ export default function UsersPage() {
       const res = await axios.get(`${API_URL}/users?q=${query}`, {
         headers: { "x-admin-secret": token },
       });
-      setUsers(res.data);
+      // Handle both old array format (just in case) and new object format
+      if (Array.isArray(res.data)) {
+        setUsers(res.data);
+        setTotalCount(res.data.length);
+      } else {
+        setUsers(res.data.users || []);
+        setTotalCount(res.data.count || 0);
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to fetch users");
     } finally {
@@ -59,10 +67,17 @@ export default function UsersPage() {
 
       <main className="lg:ml-64 p-6 lg:p-10">
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            User Management
-          </h1>
-          <p className="text-slate-500">View and manage registered users</p>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-slate-800">
+              User Management
+            </h1>
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold">
+              {totalCount} Users
+            </span>
+          </div>
+          <p className="text-slate-500 mt-2">
+            View and manage registered users
+          </p>
         </div>
 
         {/* Search */}
