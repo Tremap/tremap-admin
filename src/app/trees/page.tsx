@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import Combobox from "@/components/Combobox";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/admin";
@@ -46,8 +47,9 @@ export default function TreesPage() {
     setPage(pageNum);
 
     try {
+      // Changed limit to 20 as requested
       const res = await axios.get(
-        `${API_URL}/trees?genus=${genus}&species=${species}&page=${pageNum}&limit=50`,
+        `${API_URL}/trees?genus=${genus}&species=${species}&page=${pageNum}&limit=20`,
         {
           headers: { "x-admin-secret": secret },
         },
@@ -87,29 +89,22 @@ export default function TreesPage() {
             className="flex flex-col md:flex-row gap-4 items-end"
           >
             <div className="flex-1 w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Genus
-              </label>
-              <input
-                type="text"
+              <Combobox
+                label="Genus"
                 value={genus}
-                onChange={(e) => setGenus(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                onChange={setGenus}
+                fetchEndpoint="/suggestions?type=genus"
                 placeholder="e.g. Quercus"
-                required
               />
             </div>
             <div className="flex-1 w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Species
-              </label>
-              <input
-                type="text"
+              <Combobox
+                label="Species"
                 value={species}
-                onChange={(e) => setSpecies(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                onChange={setSpecies}
+                fetchEndpoint="/suggestions?type=species"
+                dependsOn={genus}
                 placeholder="e.g. robur"
-                required
               />
             </div>
             <button
