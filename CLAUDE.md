@@ -37,6 +37,8 @@ src/
 │       ├── page.tsx           # User list (228L)
 │       └── [id]/
 │           └── page.tsx       # User detail (192L)
+│   └── app/
+│       └── page.tsx           # App store redirect page (378L)
 └── components/
     ├── Sidebar.tsx            # Navigation sidebar (149L)
     └── Combobox.tsx           # Reusable combobox (145L)
