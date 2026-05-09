@@ -35,6 +35,17 @@ interface EnterpriseDetail {
   memberCount: number;
 }
 
+interface OrgTreeRow {
+  _id: string;
+  genus: string | null;
+  species: string | null;
+  common: string | null;
+  userId: string | null;
+  organizationName: string | null;
+  private: boolean;
+  createdAt: string | null;
+}
+
 const formatNumber = (n: number | null) => {
   if (n === null || n === undefined) return "—";
   if (n >= 2147483647) return "Unlimited";
@@ -59,6 +70,10 @@ export default function OrganizationDetailsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [trees, setTrees] = useState<OrgTreeRow[]>([]);
+  const [treesTotal, setTreesTotal] = useState(0);
+  const [treesLoading, setTreesLoading] = useState(false);
+  const [detachingId, setDetachingId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedSecret = localStorage.getItem("admin_secret");
@@ -68,6 +83,7 @@ export default function OrganizationDetailsPage() {
       setSecret(storedSecret);
       if (params.id) {
         fetchEnterprise(storedSecret, params.id as string);
+        fetchTrees(storedSecret, params.id as string);
       }
     }
   }, [params.id]);
@@ -89,6 +105,47 @@ export default function OrganizationDetailsPage() {
       setError(err.response?.data?.message || "Organization not found");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrees = async (token: string, id: string) => {
+    setTreesLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_URL}/enterprises/${id}/trees?limit=100`,
+        { headers: { "x-admin-secret": token } },
+      );
+      setTrees(res.data.trees || []);
+      setTreesTotal(res.data.total || 0);
+    } catch (err) {
+      setTrees([]);
+      setTreesTotal(0);
+    } finally {
+      setTreesLoading(false);
+    }
+  };
+
+  const detachTree = async (treeId: string) => {
+    if (
+      !confirm(
+        "Detach this tree from the organization? It will become unowned (no organization). The original uploader stays on the tree as audit metadata.",
+      )
+    ) {
+      return;
+    }
+    setDetachingId(treeId);
+    try {
+      const apiBase = API_URL.replace(/\/admin\/?$/, "");
+      await axios.patch(
+        `${apiBase}/trees/${treeId}/owner`,
+        { organizationId: null },
+        { headers: { "x-admin-secret": secret } },
+      );
+      await fetchTrees(secret, params.id as string);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to detach tree");
+    } finally {
+      setDetachingId(null);
     }
   };
 
@@ -244,6 +301,88 @@ export default function OrganizationDetailsPage() {
                 <div className="text-2xl font-bold text-slate-800 mt-1">
                   {formatNumber(data.enterprise.boughtImages)}
                 </div>
+              </div>
+            </div>
+
+            {/* Trees */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Trees{treesTotal > 0 ? ` (${treesTotal})` : ""}
+              </h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                {treesLoading ? (
+                  <div className="px-6 py-8 text-center text-slate-500">
+                    Loading trees...
+                  </div>
+                ) : trees.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-slate-500">
+                    No trees owned by this organization.
+                  </div>
+                ) : (
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold text-slate-600">
+                          Common
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600">
+                          Genus / Species
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600">
+                          Uploader
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600">
+                          Created
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600 text-right">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {trees.map((t) => (
+                        <tr
+                          key={String(t._id)}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
+                          <td className="px-6 py-4 text-slate-800 font-medium">
+                            {t.common || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {t.genus || "—"}
+                            {t.species ? ` / ${t.species}` : ""}
+                          </td>
+                          <td className="px-6 py-4">
+                            {t.userId ? (
+                              <Link
+                                href={`/users/${t.userId}`}
+                                className="text-emerald-600 hover:text-emerald-700 font-mono text-xs"
+                              >
+                                {String(t.userId).slice(-8)}
+                              </Link>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-slate-500 text-sm">
+                            {formatDate(t.createdAt)}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => detachTree(String(t._id))}
+                              disabled={detachingId === String(t._id)}
+                              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm disabled:opacity-50"
+                            >
+                              {detachingId === String(t._id)
+                                ? "Detaching..."
+                                : "Detach"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
 
